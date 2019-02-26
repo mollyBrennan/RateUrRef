@@ -23,16 +23,16 @@ auth.set_access_token(access_token, access_token_secret)
 api = tweepy.API(auth)
 
 #Connecting to the columns of our database
-def connect(username, created_at, tweet, retweet_count, place, location):
+#list of hashtags and user mentions are going to need to be stored in their own tables and related to the tweet table
+def connect(text,username, created_at, user_location, place, retweet_count, favorite_count, verified ):
 	try:
 		con = mysql.connector.connect(host = 'localhost',
 		database= 'twitterdb', user='root', password = 'sesame', charset = 'utf8')
 
 		if con.is_connected():
 			cursor = con.cursor()
-			#twitter, golf
-			query = "INSERT INTO sample_tweet_data (username, created_at, tweet, retweet_count, place, location) VALUES (%s, %s, %s, %s, %s, %s)"
-			cursor.execute(query, (username, created_at, tweet, retweet_count, place, location))
+			query = "INSERT INTO tweet_data_molly (text,username, created_at, user_location, place, retweet_count, favorite_count, verified) VALUES (%s,%s, %s, %s, %s, %s, %s, %s)"
+			cursor.execute(query, (text,username, created_at, user_location, place, retweet_count, favorite_count, verified))
 			con.commit()
 	except Error as e: 
 			print(e)
@@ -59,20 +59,21 @@ class Streamlistener(tweepy.StreamListener):
 			if 'text' in raw_data:
 					username = raw_data['user']['screen_name']
 					created_at = parser.parse(raw_data['created_at'])
-					tweet = raw_data['text']
+					text = raw_data['text']
+					user_location = raw_data['user']['location']
 					retweet_count = raw_data['retweet_count']
+					favorite_count = raw_data['favorite_count']
+					verified = raw_data['user']['verified']
 
 					if raw_data['place'] is not None:
-						place = raw_data['place']['country']
+						place = raw_data['place']['name'] #might want to change to full_name
 						print(place)
 					else:
-						place = None
-					
-					location = raw_data['user']['location']
+						place = None				
 
 					#insert data just collected into MySql database 
 
-					connect(username, created_at, tweet, retweet_count, place, location)
+					connect(text, username, created_at, user_location, place, retweet_count, favorite_count, verified)
 					print("Tweet collected at: {}".format(str(created_at)))
 		except Error as e:
 			print(e)
@@ -87,7 +88,7 @@ if __name__ == '__main__':
 	listener = Streamlistener(api = api)
 	stream = tweepy.Stream(auth, listener = listener)
 
-	track = ['march madness', 'basketball']
+	track = ['march madness', 'basketball', 'sportscenter']
 
 	#choose what we want to filter by 
 
