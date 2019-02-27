@@ -24,15 +24,18 @@ api = tweepy.API(auth)
 
 #Connecting to the columns of our database
 #list of hashtags and user mentions are going to need to be stored in their own tables and related to the tweet table
-def connect(text,username, created_at, user_location, place, retweet_count, favorite_count, verified ):
+def connect(tweet_id, text, username, created_at, user_location, place, retweet_count, favorite_count, verified, hashtags):
 	try:
 		con = mysql.connector.connect(host = 'localhost',
 		database= 'twitterdb', user='root', password = 'sesame', charset = 'utf8')
 
 		if con.is_connected():
 			cursor = con.cursor()
-			query = "INSERT INTO tweet_data_molly (text,username, created_at, user_location, place, retweet_count, favorite_count, verified) VALUES (%s,%s, %s, %s, %s, %s, %s, %s)"
-			cursor.execute(query, (text,username, created_at, user_location, place, retweet_count, favorite_count, verified))
+			query = "INSERT INTO tweet_data_molly (tweet_id, text,username, created_at, user_location, place, retweet_count, favorite_count, verified) VALUES (%s,%s, %s, %s, %s, %s, %s, %s, %s)"
+			cursor.execute(query, (tweet_id, text, username, created_at, user_location, place, retweet_count, favorite_count, verified))
+			for aHashtag in hashtags: #Stores all hashtags from tweet into hashtag table
+			    query2 = "INSERT INTO hashtags (tweet_id, hashtag) VALUES (%s,%s)"
+			    cursor.execute(query2, (tweet_id, aHashtag['text']))
 			con.commit()
 	except Error as e: 
 			print(e)
@@ -57,6 +60,7 @@ class Streamlistener(tweepy.StreamListener):
 		try:
 			raw_data = json.loads(data)
 			if 'text' in raw_data:
+					tweet_id = raw_data['id_str']
 					username = raw_data['user']['screen_name']
 					created_at = parser.parse(raw_data['created_at'])
 					text = raw_data['text']
@@ -64,6 +68,7 @@ class Streamlistener(tweepy.StreamListener):
 					retweet_count = raw_data['retweet_count']
 					favorite_count = raw_data['favorite_count']
 					verified = raw_data['user']['verified']
+					hashtags = raw_data['entities']['hashtags']
 
 					if raw_data['place'] is not None:
 						place = raw_data['place']['name'] #might want to change to full_name
@@ -73,7 +78,7 @@ class Streamlistener(tweepy.StreamListener):
 
 					#insert data just collected into MySql database 
 
-					connect(text, username, created_at, user_location, place, retweet_count, favorite_count, verified)
+					connect(tweet_id, text, username, created_at, user_location, place, retweet_count, favorite_count, verified, hashtags)
 					print("Tweet collected at: {}".format(str(created_at)))
 		except Error as e:
 			print(e)
@@ -88,7 +93,7 @@ if __name__ == '__main__':
 	listener = Streamlistener(api = api)
 	stream = tweepy.Stream(auth, listener = listener)
 
-	track = ['march madness', 'basketball', 'sportscenter']
+	track = ['ref','refs', 'referee', 'bad call', 'basketball', 'march madness']
 
 	#choose what we want to filter by 
 
