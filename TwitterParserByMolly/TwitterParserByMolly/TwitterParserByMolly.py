@@ -30,17 +30,23 @@ def connect(tweet_id, text, username, screen_name, created_at, user_location, pl
 		#con = mysql.connector.connect(host = 'localhost',
 		#database= 'twitterdb', user='root', password = 'sesame', charset = 'utf8')
 		cnxn = pyodbc.connect('DRIVER={ODBC Driver 17 for SQL Server};SERVER='+server+';DATABASE='+database+';UID='+dbUsername+';PWD='+ password)
-		#pyodbc.connect(Driver={ODBC Driver 13 for SQL Server};Server=tcp:rateurrefserver.database.windows.net,1433;Database=RateUrRefDb;Uid=RateUrRef@rateurrefserver;Pwd={your_password_here};Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30;)
-
+		#Some attributes we can use pyodbc.connect(Driver={ODBC Driver 13 for SQL Server};Server=tcp:rateurrefserver.database.windows.net,1433;Database=RateUrRefDb;Uid=RateUrRef@rateurrefserver;Pwd={your_password_here};Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30;)
 		cursor = cnxn.cursor()
+
+		#Insert into tweets table
 		tweet_query = "INSERT INTO [dbo].[tweets] (tweet_id, text,username,screen_name, created_at, user_location, place, verified) VALUES (?,?, ?, ?, ?, ?, ?, ?)"
 		cursor.execute(tweet_query, (tweet_id, text, username, screen_name, created_at, user_location, place, verified))
+		
+		#Insert into Hashtag table
 		for aHashtag in hashtags: #Stores all hashtags from tweet into hashtag table
 			hashtag_query = "INSERT INTO [dbo].[hashtags] (tweet_id, hashtag) VALUES (?,?)"
 			cursor.execute(hashtag_query, (tweet_id, aHashtag['text']))
+		
+		#Insert into User_mentions table
 		for aUserMention in user_mentions: #Stores all user_mentions from tweet into user_mention table
 			user_mention_query = "INSERT INTO [dbo].[user_mentions]  (tweet_id, name, screen_name) VALUES (?,?,?)"
 			cursor.execute(user_mention_query, (tweet_id, aUserMention['name'], aUserMention['screen_name']))
+		
 		cnxn.commit()
 	except (RuntimeError,TypeError, NameError, ValueError) as e: 
 			print(e)
@@ -49,7 +55,6 @@ def connect(tweet_id, text, username, screen_name, created_at, user_location, pl
 		cursor.close()
 		del cursor
 		cnxn.close()
-
 	return
 
 #Tweepy Class to Access Twitter API 
@@ -66,6 +71,7 @@ class Streamlistener(tweepy.StreamListener):
 	def on_data(self, data):
 		try:
 			raw_data = json.loads(data)
+			#Gather tweet information from the json data
 			if 'text' in raw_data:
 					tweet_id = raw_data['id_str']
 					username = raw_data['user']['name']
@@ -85,8 +91,6 @@ class Streamlistener(tweepy.StreamListener):
 					else:
 						place = None				
 
-					#insert data just collected into MySql database 
-
 					connect(tweet_id, text, username,screen_name, created_at, user_location, place, retweet_count, favorite_count, verified, hashtags, user_mentions)
 					print("Tweet collected at: {}".format(str(created_at)))
 		except (RuntimeError,TypeError, NameError, ValueError) as e: 
@@ -98,13 +102,11 @@ if __name__ == '__main__':
 	api = tweepy.API(auth, wait_on_rate_limit=True)
 
 	#create instance of Streamlistener
-
 	listener = Streamlistener(api = api)
 	stream = tweepy.Stream(auth, listener = listener)
 
+	#List of Words to search tweets for in the live Listener
 	track = ['bad call','basketball','championship','college bball', 'college basketball','elite 8', 'elite eight','final 4', 'final four','march madness','National Championship','NCAA basketball','NCAA bball','NCAA hoops','official', 'officials', 'officiating','ref','refs', 'referee', 'referees','Round of 64','Round of 32','sweet 16', 'sweet sixteen']
-
-	#choose what we want to filter by 
 
 	stream.filter(track = track, languages = ['en'])
 
