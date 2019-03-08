@@ -1,9 +1,4 @@
-#1. Create a class that allows us to connect to the Twitter API
-#2. Create some code that connects to our database and reads the data into the correct columns 
-
 #Use the Tweepy Library to connect to the API and start streaming data. 
-import mysql.connector
-from mysql.connector import Error
 import tweepy
 import json
 from dateutil import parser
@@ -30,7 +25,7 @@ password = 'CSGals1234'
 
 #Connecting to the columns of our database
 #list of hashtags and user mentions are going to need to be stored in their own tables and related to the tweet table
-def connect(tweet_id, text, username, created_at, user_location, place, retweet_count, favorite_count, verified, hashtags, user_mentions):
+def connect(tweet_id, text, username, screen_name, created_at, user_location, place, retweet_count, favorite_count, verified, hashtags, user_mentions):
 	try:
 		#con = mysql.connector.connect(host = 'localhost',
 		#database= 'twitterdb', user='root', password = 'sesame', charset = 'utf8')
@@ -38,20 +33,22 @@ def connect(tweet_id, text, username, created_at, user_location, place, retweet_
 		#pyodbc.connect(Driver={ODBC Driver 13 for SQL Server};Server=tcp:rateurrefserver.database.windows.net,1433;Database=RateUrRefDb;Uid=RateUrRef@rateurrefserver;Pwd={your_password_here};Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30;)
 
 		cursor = cnxn.cursor()
-		tweet_query = "INSERT INTO [dbo].[tweets] (tweet_id, text,username, created_at, user_location, place, verified) VALUES (?, ?, ?, ?, ?, ?, ?)"
-		cursor.execute(tweet_query, (tweet_id, text, username, created_at, user_location, place, verified))
+		tweet_query = "INSERT INTO [dbo].[tweets] (tweet_id, text,username,screen_name, created_at, user_location, place, verified) VALUES (?,?, ?, ?, ?, ?, ?, ?)"
+		cursor.execute(tweet_query, (tweet_id, text, username, screen_name, created_at, user_location, place, verified))
 		for aHashtag in hashtags: #Stores all hashtags from tweet into hashtag table
 			hashtag_query = "INSERT INTO [dbo].[hashtags] (tweet_id, hashtag) VALUES (?,?)"
 			cursor.execute(hashtag_query, (tweet_id, aHashtag['text']))
-		#for aUserMention in user_mentions: #Stores all user_mentions from tweet into user_mention table
-		#	user_mention_query = "INSERT INTO [dbo].[user_mentions]  (tweet_id, user_mention) VALUES (?,?)"
-		#	cursor.execute(user_mention_query, (tweet_id, aUserMention['name']))
+		for aUserMention in user_mentions: #Stores all user_mentions from tweet into user_mention table
+			user_mention_query = "INSERT INTO [dbo].[user_mentions]  (tweet_id, name, screen_name) VALUES (?,?,?)"
+			cursor.execute(user_mention_query, (tweet_id, aUserMention['name'], aUserMention['screen_name']))
 		cnxn.commit()
-	except Error as e: 
+	except (RuntimeError,TypeError, NameError, ValueError) as e: 
 			print(e)
 	
-	cursor.close()
-	cnxn.close()
+	finally:
+		cursor.close()
+		del cursor
+		cnxn.close()
 
 	return
 
@@ -71,7 +68,8 @@ class Streamlistener(tweepy.StreamListener):
 			raw_data = json.loads(data)
 			if 'text' in raw_data:
 					tweet_id = raw_data['id_str']
-					username = raw_data['user']['screen_name']
+					username = raw_data['user']['name']
+					screen_name = raw_data['user']['screen_name']
 					created_at = parser.parse(raw_data['created_at'])
 					text = raw_data['text']
 					user_location = raw_data['user']['location']
@@ -89,9 +87,9 @@ class Streamlistener(tweepy.StreamListener):
 
 					#insert data just collected into MySql database 
 
-					connect(tweet_id, text, username, created_at, user_location, place, retweet_count, favorite_count, verified, hashtags, user_mentions)
+					connect(tweet_id, text, username,screen_name, created_at, user_location, place, retweet_count, favorite_count, verified, hashtags, user_mentions)
 					print("Tweet collected at: {}".format(str(created_at)))
-		except Error as e:
+		except (RuntimeError,TypeError, NameError, ValueError) as e: 
 			print(e)
 
 if __name__ == '__main__':
@@ -104,7 +102,7 @@ if __name__ == '__main__':
 	listener = Streamlistener(api = api)
 	stream = tweepy.Stream(auth, listener = listener)
 
-	track = ['ref','refs', 'referee', 'bad call', 'march madness']
+	track = ['bad call','basketball','championship','college bball', 'college basketball','elite 8', 'elite eight','final 4', 'final four','march madness','National Championship','NCAA basketball','NCAA bball','NCAA hoops','official', 'officials', 'officiating','ref','refs', 'referee', 'referees','Round of 64','Round of 32','sweet 16', 'sweet sixteen']
 
 	#choose what we want to filter by 
 
