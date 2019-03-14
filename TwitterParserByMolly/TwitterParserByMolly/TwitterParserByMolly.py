@@ -6,6 +6,7 @@ import time
 import os
 import subprocess
 import pyodbc 
+import http.client
 
 #Our Credentials for Twitter API App
 consumer_key = "DrhJOGilzxVB8FvV5WYvJ5t11"
@@ -48,7 +49,7 @@ def connect(tweet_id, text, username, screen_name, created_at, user_location, pl
 			cursor.execute(user_mention_query, (tweet_id, aUserMention['name'], aUserMention['screen_name']))
 		
 		cnxn.commit()
-	except (RuntimeError,TypeError, NameError, ValueError) as e: 
+	except (RuntimeError,TypeError, NameError, ValueError, http.client.IncompleteRead) as e: 
 			print(e)
 	
 	finally:
@@ -93,7 +94,7 @@ class Streamlistener(tweepy.StreamListener):
 
 					connect(tweet_id, text, username,screen_name, created_at, user_location, place, retweet_count, favorite_count, verified, hashtags, user_mentions)
 					print("Tweet collected at: {}".format(str(created_at)))
-		except (RuntimeError,TypeError, NameError, ValueError) as e: 
+		except (RuntimeError,TypeError, NameError, ValueError, http.client.IncompleteRead) as e: 
 			print(e)
 
 if __name__ == '__main__':
@@ -105,8 +106,8 @@ if __name__ == '__main__':
 	listener = Streamlistener(api = api)
 	stream = tweepy.Stream(auth, listener = listener)
 
-	#List of Words to search tweets for in the live Listener
-	track = ['bad call','basketball','championship','college bball', 'college basketball','elite 8', 'elite eight','final 4', 'final four','march madness','National Championship','NCAA basketball','NCAA bball','NCAA hoops','official', 'officials', 'officiating','ref','refs', 'referee', 'referees','Round of 64','Round of 32','sweet 16', 'sweet sixteen']
-
-	stream.filter(track = track, languages = ['en'])
+	#List of Words to search tweets for in the live Listener/ If we have too many words than an Incomplete error is thrown because can't keep up with the tweets
+	track = ['bad call','ref','refs', 'referee', 'referees']
+	#possible other words (taking out to test = 'championship','college bball', 'college basketball','elite 8', 'elite eight','final 4', 'final four','march madness','National Championship','NCAA basketball','NCAA bball','NCAA hoops', ,'official', 'officials', 'officiating',,'Round of 64','Round of 32','sweet 16', 'sweet sixteen') 
+	stream.filter(track = track, languages = ['en'], stall_warnings=True)
 
