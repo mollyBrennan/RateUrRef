@@ -26,7 +26,7 @@ password = 'CSGals1234'
 
 #Connecting to the columns of our database
 #list of hashtags and user mentions are going to need to be stored in their own tables and related to the tweet table
-def connect(tweet_id, text, username, screen_name, created_at, user_location, place, retweet_count, favorite_count, verified, hashtags, user_mentions):
+def connect(tweet_id, text,quoted_text, username, screen_name, created_at, user_location, place, retweet_count, favorite_count, verified, hashtags, user_mentions):
 	try:
 		#con = mysql.connector.connect(host = 'localhost',
 		#database= 'twitterdb', user='root', password = 'sesame', charset = 'utf8')
@@ -35,8 +35,8 @@ def connect(tweet_id, text, username, screen_name, created_at, user_location, pl
 		cursor = cnxn.cursor()
 
 		#Insert into tweets table
-		tweet_query = "INSERT INTO [dbo].[tweets] (tweet_id, text,username,screen_name, created_at, user_location, place, verified) VALUES (?,?, ?, ?, ?, ?, ?, ?)"
-		cursor.execute(tweet_query, (tweet_id, text, username, screen_name, created_at, user_location, place, verified))
+		tweet_query = "INSERT INTO [dbo].[tweets] (tweet_id, text,quoted_text,username,screen_name, created_at, user_location, place, verified) VALUES (?,?,?, ?, ?, ?, ?, ?, ?)"
+		cursor.execute(tweet_query, (tweet_id, text, quoted_text, username, screen_name, created_at, user_location, place, verified))
 		
 		#Insert into Hashtag table
 		for aHashtag in hashtags: #Stores all hashtags from tweet into hashtag table
@@ -86,13 +86,17 @@ class Streamlistener(tweepy.StreamListener):
 					hashtags = raw_data['entities']['hashtags']
 					user_mentions = raw_data['entities']['user_mentions']
 
+					if raw_data['is_quote_status']== True:
+						quoted_text = raw_data['quoted_status']['text']
+					else: quoted_text = None
+
 					if raw_data['place'] is not None:
 						place = raw_data['place']['name'] #might want to change to full_name
 						print(place)
 					else:
 						place = None				
 
-					connect(tweet_id, text, username,screen_name, created_at, user_location, place, retweet_count, favorite_count, verified, hashtags, user_mentions)
+					connect(tweet_id, text,quoted_text, username,screen_name, created_at, user_location, place, retweet_count, favorite_count, verified, hashtags, user_mentions)
 					print("Tweet collected at: {}".format(str(created_at)))
 		except (RuntimeError,TypeError, NameError, ValueError, http.client.IncompleteRead) as e: 
 			print(e)
