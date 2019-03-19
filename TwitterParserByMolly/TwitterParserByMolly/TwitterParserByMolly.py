@@ -7,6 +7,7 @@ import os
 import subprocess
 import pyodbc 
 import http.client
+import time
 
 #Our Credentials for Twitter API App
 consumer_key = "DrhJOGilzxVB8FvV5WYvJ5t11"
@@ -27,36 +28,42 @@ password = 'CSGals1234'
 #Connecting to the columns of our database
 #list of hashtags and user mentions are going to need to be stored in their own tables and related to the tweet table
 def connect(tweet_id, text,quoted_id, retweet_id, username, screen_name, created_at, user_location, place, retweet_count, favorite_count, verified, hashtags, user_mentions):
-	try:
-		#con = mysql.connector.connect(host = 'localhost',
-		#database= 'twitterdb', user='root', password = 'sesame', charset = 'utf8')
-		cnxn = pyodbc.connect('DRIVER={ODBC Driver 17 for SQL Server};SERVER='+server+';DATABASE='+database+';UID='+dbUsername+';PWD='+ password)
-		#Some attributes we can use pyodbc.connect(Driver={ODBC Driver 13 for SQL Server};Server=tcp:rateurrefserver.database.windows.net,1433;Database=RateUrRefDb;Uid=RateUrRef@rateurrefserver;Pwd={your_password_here};Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30;)
-		cursor = cnxn.cursor()
+	retry_flag = True
+	retry_count = 0
+	while retry_flag and retry_count < 10:
+		try:
+			#con = mysql.connector.connect(host = 'localhost',
+			#database= 'twitterdb', user='root', password = 'sesame', charset = 'utf8')
+			cnxn = pyodbc.connect('DRIVER={ODBC Driver 17 for SQL Server};SERVER='+server+';DATABASE='+database+';UID='+dbUsername+';PWD='+ password)
+			#Some attributes we can use pyodbc.connect(Driver={ODBC Driver 13 for SQL Server};Server=tcp:rateurrefserver.database.windows.net,1433;Database=RateUrRefDb;Uid=RateUrRef@rateurrefserver;Pwd={your_password_here};Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30;)
+			cursor = cnxn.cursor()
 
-		#Insert into tweets table
-		tweet_query = "INSERT INTO [dbo].[tweets] (tweet_id, text,quoted_id,retweet_id,username,screen_name, created_at, user_location, place, verified) VALUES (?,?,?,?, ?, ?, ?, ?, ?, ?)"
-		cursor.execute(tweet_query, (tweet_id, text, quoted_id,retweet_id, username, screen_name, created_at, user_location, place, verified))
+			#Insert into tweets table
+			tweet_query = "INSERT INTO [dbo].[tweets] (tweet_id, text,quoted_id,retweet_id,username,screen_name, created_at, user_location, place, verified) VALUES (?,?,?,?, ?, ?, ?, ?, ?, ?)"
+			cursor.execute(tweet_query, (tweet_id, text, quoted_id,retweet_id, username, screen_name, created_at, user_location, place, verified))
 		
-		#Insert into Hashtag table
-		for aHashtag in hashtags: #Stores all hashtags from tweet into hashtag table
-			hashtag_query = "INSERT INTO [dbo].[hashtags] (tweet_id, hashtag) VALUES (?,?)"
-			cursor.execute(hashtag_query, (tweet_id, aHashtag['text']))
+			#Insert into Hashtag table
+			for aHashtag in hashtags: #Stores all hashtags from tweet into hashtag table
+				hashtag_query = "INSERT INTO [dbo].[hashtags] (tweet_id, hashtag) VALUES (?,?)"
+				cursor.execute(hashtag_query, (tweet_id, aHashtag['text']))
 		
-		#Insert into User_mentions table
-		for aUserMention in user_mentions: #Stores all user_mentions from tweet into user_mention table
-			user_mention_query = "INSERT INTO [dbo].[user_mentions]  (tweet_id, name, screen_name) VALUES (?,?,?)"
-			cursor.execute(user_mention_query, (tweet_id, aUserMention['name'], aUserMention['screen_name']))
+			#Insert into User_mentions table
+			for aUserMention in user_mentions: #Stores all user_mentions from tweet into user_mention table
+				user_mention_query = "INSERT INTO [dbo].[user_mentions]  (tweet_id, name, screen_name) VALUES (?,?,?)"
+				cursor.execute(user_mention_query, (tweet_id, aUserMention['name'], aUserMention['screen_name']))
 		
-		cnxn.commit()
-	except (RuntimeError,TypeError, NameError, ValueError, http.client.IncompleteRead) as e: 
-			print(e)
+			cnxn.commit()
+			retry_flag = False
+		except (RuntimeError,TypeError, NameError, ValueError, http.client.IncompleteRead) as e: 
+				print(e)
+				retry_count = retry_count +1;
+				time.sleep(1)
 	
-	finally:
-		cursor.close()
-		del cursor
-		cnxn.close()
-	return
+		finally:
+			cursor.close()
+			del cursor
+			cnxn.close()
+		return
 
 #Tweepy Class to Access Twitter API 
 
