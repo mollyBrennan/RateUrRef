@@ -54,9 +54,10 @@ def connect(tweet_id, text,quoted_id, retweet_id, username, screen_name, created
 		
 			cnxn.commit()
 			retry_flag = False
-		except (RuntimeError,TypeError, NameError, ValueError, http.client.IncompleteRead) as e: 
+		except (RuntimeError,TypeError, NameError, ValueError, http.client.IncompleteRead, KeyError) as e: 
 				print(e)
 				retry_count = retry_count +1;
+				print("retry count: " + retry_count)
 				time.sleep(1)
 	
 		finally:
@@ -119,7 +120,7 @@ class Streamlistener(tweepy.StreamListener):
 
 					connect(tweet_id, text,quoted_id, retweet_id,username,screen_name, created_at, user_location, place, retweet_count, favorite_count, verified, hashtags, user_mentions)
 					print("Tweet collected at: {}".format(str(created_at)))
-		except (RuntimeError,TypeError, NameError, ValueError, http.client.IncompleteRead) as e: 
+		except (RuntimeError,TypeError, NameError, ValueError, http.client.IncompleteRead, KeyError) as e: 
 			print(e)
 
 if __name__ == '__main__':
