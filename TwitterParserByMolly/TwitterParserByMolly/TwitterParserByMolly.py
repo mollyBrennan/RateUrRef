@@ -9,6 +9,8 @@ import pyodbc
 import http.client
 import time
 
+#checking for git access
+
 #Our Credentials for Twitter API App
 consumer_key = "DrhJOGilzxVB8FvV5WYvJ5t11"
 consumer_secret= "MaWhCzZelZbBwa6Q6bqWM0meI8rqDmElPF03IdsfGNSuqpil4U"
