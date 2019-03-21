@@ -8,6 +8,7 @@ import subprocess
 import pyodbc 
 import http.client
 import time
+import urllib3.exceptions
 
 #Our Credentials for Twitter API App
 consumer_key = "DrhJOGilzxVB8FvV5WYvJ5t11"
@@ -28,9 +29,6 @@ password = 'CSGals1234'
 #Connecting to the columns of our database
 #list of hashtags and user mentions are going to need to be stored in their own tables and related to the tweet table
 def connect(tweet_id, text,quoted_id, retweet_id, username, screen_name, created_at, user_location, place, retweet_count, favorite_count, verified, hashtags, user_mentions):
-	retry_flag = True
-	retry_count = 0
-	while retry_flag and retry_count < 10:
 		try:
 			#con = mysql.connector.connect(host = 'localhost',
 			#database= 'twitterdb', user='root', password = 'sesame', charset = 'utf8')
@@ -53,12 +51,9 @@ def connect(tweet_id, text,quoted_id, retweet_id, username, screen_name, created
 				cursor.execute(user_mention_query, (tweet_id, aUserMention['name'], aUserMention['screen_name']))
 		
 			cnxn.commit()
-			retry_flag = False
+
 		except (RuntimeError,TypeError, NameError, ValueError, http.client.IncompleteRead, KeyError) as e: 
 				print(e)
-				retry_count = retry_count +1;
-				print("retry count: " + retry_count)
-				time.sleep(1)
 	
 		finally:
 			cursor.close()
@@ -78,50 +73,72 @@ class Streamlistener(tweepy.StreamListener):
 			return False # may want to change to true if we dont want to kill the stream
 
 	def on_data(self, data):
-		try:
-			raw_data = json.loads(data)
-			#Gather tweet information from the json data
-			if 'text' in raw_data:
-					tweet_id = raw_data['id_str']
-					username = raw_data['user']['name']
-					screen_name = raw_data['user']['screen_name']
-					created_at = parser.parse(raw_data['created_at'])
+		retry_flag = True
+		retry_count = 0
+		while retry_flag and retry_count < 10:
+			try:
+				raw_data = json.loads(data)
+				#Gather tweet information from the json data
+				if 'text' in raw_data:
+						tweet_id = raw_data['id_str']
+						username = raw_data['user']['name']
+						screen_name = raw_data['user']['screen_name']
+						created_at = parser.parse(raw_data['created_at'])
 
-					#Ensure that text > 140 characters is retrieved from the extended_tweet object
-					if 'extended_tweet' in raw_data:
-						if 'full_text' in raw_data['extended_tweet']:
-							text = raw_data['extended_tweet']['full_text']
-					elif 'text' in raw_data:
-						text = raw_data['text']
+						#Ensure that text > 140 characters is retrieved from the extended_tweet object
+						if 'extended_tweet' in raw_data:
+							if 'full_text' in raw_data['extended_tweet']:
+								text = raw_data['extended_tweet']['full_text']
+						elif 'text' in raw_data:
+							text = raw_data['text']
 					
-					#Does tweet contain a quote? If yes, store quoted tweet's id
-					if raw_data['is_quote_status']== True:
-						quoted_id = raw_data['quoted_status_id_str']
-					else: quoted_id = None
+						#Does tweet contain a quote? If yes, store quoted tweet's id
+						if raw_data['is_quote_status']== True:
+							quoted_id = raw_data['quoted_status_id_str']
+						else: quoted_id = None
 
-					#Is tweet a retweet? If yes, store retweets tweet's id
-					if 'retweeted_status' in raw_data:
-						if 'id_str' in raw_data['retweeted_status']:
-							retweet_id = raw_data['retweeted_status']['id_str']
-					else:retweet_id = None
+						#Is tweet a retweet? If yes, store retweets tweet's id
+						if 'retweeted_status' in raw_data:
+							if 'id_str' in raw_data['retweeted_status']:
+								retweet_id = raw_data['retweeted_status']['id_str']
+						else:retweet_id = None
 
-					user_location = raw_data['user']['location']
-					retweet_count = raw_data['retweet_count']
-					favorite_count = raw_data['favorite_count']
-					verified = raw_data['user']['verified']
-					hashtags = raw_data['entities']['hashtags']
-					user_mentions = raw_data['entities']['user_mentions']
+						user_location = raw_data['user']['location']
+						retweet_count = raw_data['retweet_count']
+						favorite_count = raw_data['favorite_count']
+						verified = raw_data['user']['verified']
+						hashtags = raw_data['entities']['hashtags']
+						user_mentions = raw_data['entities']['user_mentions']
 
-					if raw_data['place'] is not None:
-						place = raw_data['place']['name'] #might want to change to full_name
-						print(place)
-					else:
-						place = None				
+						if raw_data['place'] is not None:
+							place = raw_data['place']['name'] #might want to change to full_name
+							print(place)
+						else:
+							place = None				
 
-					connect(tweet_id, text,quoted_id, retweet_id,username,screen_name, created_at, user_location, place, retweet_count, favorite_count, verified, hashtags, user_mentions)
-					print("Tweet collected at: {}".format(str(created_at)))
-		except (RuntimeError,TypeError, NameError, ValueError, http.client.IncompleteRead, KeyError) as e: 
-			print(e)
+						connect(tweet_id, text,quoted_id, retweet_id,username,screen_name, created_at, user_location, place, retweet_count, favorite_count, verified, hashtags, user_mentions)
+						print("Tweet collected at: {}".format(str(created_at)))
+						retry_flag = False
+			#2 exceptions to try and fix incomplete read problem with tweepy streaming too many tweets at once. Should sleep for 5 seconds then restart 
+			except(http.client.IncompleteRead) as e:
+				print("Caused Failure - Molly incomplete read http client")
+				retry_count = retry_count +1;
+				print("retry count: " + retry_count)
+				print("~~~Restarting Stream in 5 seconds.~~~")
+				time.sleep(5)
+				return True #restart the stream
+
+			except(urllib3.exceptions.IncompleteRead) as e:
+				print("Caused Failure - Molly incomplete read urllib3")
+				retry_count = retry_count +1;
+				print("retry count: " + retry_count)
+				print("~~~Restarting Stream in 5 seconds.~~~")
+				time.sleep(5)
+				return True #restart the stream
+
+			except (RuntimeError,TypeError, NameError, ValueError, KeyError) as e: 
+				print(e)
+				print("Caused Failure - Molly")
 
 if __name__ == '__main__':
 	auth = tweepy.OAuthHandler(consumer_key, consumer_secret)
