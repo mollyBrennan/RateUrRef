@@ -75,7 +75,7 @@ class Streamlistener(tweepy.StreamListener):
 	def on_data(self, data):
 		retry_flag = True
 		retry_count = 0
-		while retry_flag and retry_count < 10:
+		while retry_flag and retry_count < 25:
 			try:
 				raw_data = json.loads(data)
 				#Gather tweet information from the json data
@@ -121,6 +121,7 @@ class Streamlistener(tweepy.StreamListener):
 						retry_flag = False
 			#2 exceptions to try and fix incomplete read problem with tweepy streaming too many tweets at once. Should sleep for 5 seconds then restart 
 			except(http.client.IncompleteRead) as e:
+				print(e)
 				print("Caused Failure - Molly incomplete read http client")
 				retry_count = retry_count +1;
 				print("retry count: " + retry_count)
@@ -129,6 +130,7 @@ class Streamlistener(tweepy.StreamListener):
 				return True #restart the stream
 
 			except(urllib3.exceptions.IncompleteRead) as e:
+				print(e)
 				print("Caused Failure - Molly incomplete read urllib3")
 				retry_count = retry_count +1;
 				print("retry count: " + retry_count)
@@ -139,6 +141,11 @@ class Streamlistener(tweepy.StreamListener):
 			except (RuntimeError,TypeError, NameError, ValueError, KeyError) as e: 
 				print(e)
 				print("Caused Failure - Molly")
+				retry_count = retry_count +1;
+				print("retry count: " + retry_count)
+				print("~~~Restarting Stream in 5 seconds.~~~")
+				time.sleep(5)
+				return True #restart the stream
 
 if __name__ == '__main__':
 	auth = tweepy.OAuthHandler(consumer_key, consumer_secret)
