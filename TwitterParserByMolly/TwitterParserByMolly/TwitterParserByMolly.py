@@ -124,7 +124,7 @@ class Streamlistener(tweepy.StreamListener):
 				print(e)
 				print("Caused Failure - Molly incomplete read http client")
 				retry_count = retry_count +1;
-				print("retry count: " + retry_count)
+				print("retry count: " + str(retry_count))
 				print("~~~Restarting Stream in 5 seconds.~~~")
 				time.sleep(5)
 				return True #restart the stream
@@ -133,7 +133,7 @@ class Streamlistener(tweepy.StreamListener):
 				print(e)
 				print("Caused Failure - Molly incomplete read urllib3")
 				retry_count = retry_count +1;
-				print("retry count: " + retry_count)
+				print("retry count: " + str(retry_count))
 				print("~~~Restarting Stream in 5 seconds.~~~")
 				time.sleep(5)
 				return True #restart the stream
@@ -142,7 +142,7 @@ class Streamlistener(tweepy.StreamListener):
 				print(e)
 				print("Caused Failure - Molly")
 				retry_count = retry_count +1;
-				print("retry count: " + retry_count)
+				print("retry count: " + str(retry_count))
 				print("~~~Restarting Stream in 5 seconds.~~~")
 				time.sleep(5)
 				return True #restart the stream
